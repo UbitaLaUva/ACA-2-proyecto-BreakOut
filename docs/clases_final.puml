@@ -1,0 +1,178 @@
+@startuml
+' Diagrama de clases FINAL (ACA 2). Los estereotipos marcan el delta vs. ACA 1:
+'   <<nuevo>>  no existía en el ACA 1
+'   <<cambió>> existía, pero cambió su contenido o sus relaciones
+skinparam classAttributeIconSize 0
+
+class Game <<cambió>> {
+  -_score: int
+  -_lives: int
+  -_levelIndex: int
+  -_state: State
+  -_powerUps: List<PowerUp>
+  +new(): Game
+  +handleInput(key: String)
+  +update(dt: float)
+  +draw()
+  +changeState(name: String)
+  +checkCollisions(): String
+  +updatePlay(dt: float): String
+  +startNewGame()
+  +loadNextLevel()
+  +launchBall()
+  +widenPaddle()
+  +addLife()
+  +drawWorld()
+  +showMessage(title, subtitle)
+}
+
+class states <<nuevo>> <<módulo>> {
+  title
+  serve
+  play
+  pause
+  levelcomplete
+  gameover
+  victory
+  --
+  cada estado: enter(game), update(game, dt),
+  draw(game), keypressed(game, key)
+}
+
+class Collision <<nuevo>> <<módulo>> {
+  +aabb(a, b): boolean
+  +overlap(a, b): float, float
+  +resolve(a, b): String, float
+}
+
+class Ball <<cambió>> {
+  +x, y, w, h: float
+  -_vx: float
+  -_vy: float
+  -_speed: float
+  +new(size: float): Ball
+  +update(dt: float)
+  +draw()
+  +bounce(axis: String, push: float)
+  +deflect(t: float, surfaceY: float)
+  +launch(t: float)
+  +restOn(centerX: float, surfaceY: float)
+  +isMovingDown(): boolean
+}
+
+class Paddle <<cambió>> {
+  +x, y, w, h: float
+  -_speed: float
+  -_targetWidth: float
+  -_wideTimer: float
+  +new(centerX: float, y: float): Paddle
+  +moveLeft(dt: float)
+  +moveRight(dt: float)
+  +update(dt: float, areaWidth: float)
+  +draw()
+  +impactFactor(pointX: float): float
+  +widen(seconds: float)
+}
+
+class Level <<cambió>> {
+  -_number: int
+  -_name: String
+  -_ballSpeed: float
+  -_bricks: List<Brick>
+  +new(number: int, data: table, areaWidth: float): Level
+  +loadBricks(layout: table, areaWidth: float)
+  +findHit(box): Brick
+  +isCompleted(): boolean
+  +draw()
+}
+
+class Brick <<cambió>> {
+  +x, y, w, h: float
+  -_dead: boolean
+  -_color: table
+  +new(x, y, w, h, row): Brick
+  +onHit(): int
+  +isDead(): boolean
+  +isBreakable(): boolean
+  +getColor(): table
+  +draw()
+}
+
+class StrongBrick <<nuevo>> {
+  -_hp: int
+  +onHit(): int
+  +getColor(): table
+}
+
+class UnbreakableBrick <<nuevo>> {
+  +onHit(): int
+  +isBreakable(): boolean
+  +getColor(): table
+  +draw()
+}
+
+class PowerUp <<nuevo>> {
+  +x, y, w, h: float
+  -_effect: function
+  +new(centerX, centerY, kind): PowerUp
+  +random(centerX, centerY): PowerUp
+  +update(dt: float)
+  +applyTo(game: Game)
+  +draw()
+}
+
+class UI <<cambió>> {
+  +new(): UI
+  +drawScore(score: int)
+  +drawLives(lives: int)
+  +drawLevel(number: int, name: String)
+  +drawMessage(title: String, subtitle: String)
+  +drawHint(text: String)
+  +drawOverlay()
+}
+
+class Sound <<nuevo>> {
+  +new(): Sound
+  +play(name: String)
+}
+
+class Particles <<nuevo>> {
+  +new(): Particles
+  +burst(x, y, color, count)
+  +update(dt: float)
+  +draw()
+}
+
+class Shake <<nuevo>> {
+  +new(): Shake
+  +start(duration: float, magnitude: float)
+  +update(dt: float)
+  +getOffset(): float, float
+}
+
+' Herencia (nuevo)
+Brick <|-- StrongBrick
+Brick <|-- UnbreakableBrick
+
+' Composición: Game crea estas piezas y viven lo mismo que él
+Game *-- "1" Ball : contiene
+Game *-- "1" Paddle : contiene
+Game *-- "1" Level : contiene
+Game *-- "1" UI : contiene (antes agregación)
+Game *-- "0..*" PowerUp : contiene
+Game *-- "1" Sound
+Game *-- "1" Particles
+Game *-- "1" Shake
+Level *-- "0..*" Brick : compone
+
+' Dependencias: se usan, pero no se guardan como atributo
+Game ..> states : delega en el estado actual
+Game ..> Collision : usa
+Level ..> Collision : usa
+PowerUp ..> Game : aplica su efecto
+
+' ELIMINADO respecto al ACA 1:
+'   Ball --> Paddle : colisiona
+'   Ball --> Brick  : colisiona
+' La bola ya no conoce a nadie; Game coordina las colisiones.
+@enduml
